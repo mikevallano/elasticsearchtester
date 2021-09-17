@@ -1,6 +1,6 @@
 Book.__elasticsearch__.create_index!(force: true)
 
-author1 = Author.create!(first_name: 'John', last_name: 'Black')
+author1 = Author.create!(first_name: 'John', last_name: 'Back')
 author2 = Author.create!(first_name: 'Joe', last_name: 'Doe')
 
 Book.create!(
@@ -11,10 +11,10 @@ Book.create!(
   pages: 1000
 )
 Book.create!(
-  title: 'Begninner Ruby on Rails',
+  title: 'Back To Basics Ruby on Rails',
   isbn: '44356',
   published_at: (3.years - 2.months).ago,
-  author: author1,
+  author: author2,
   pages: 100
 )
 Book.create!(
