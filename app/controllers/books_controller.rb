@@ -26,13 +26,22 @@ class BooksController < ApplicationController
       }
     }
 
+    query_hash1 = {
+      params[:query_type].to_sym => {
+        query: params[:query],
+        fields: [params[:query_field]],
+        fuzziness: 1
+      }
+    }
+
+
     response = Book.__elasticsearch__.search(
-      query: query_hash
+      query: query_hash1
     ).results
 
     # response = Book.__elasticsearch__.search(
     #   query: {
-    #     term: { # check diff results using 'match'
+    #     match_phrase: {
     #       title: params[:query]
     #     }
     #   }
@@ -43,8 +52,9 @@ class BooksController < ApplicationController
     #     multi_match: {
     #       fields: ['title^3', 'author.last_name'], # the ^ boosts the score by 3
     #       query: params[:query],
-    #       type: :phrase,
-    #       operator: :and
+    #       # type: :phrase,
+    #       operator: :and,
+    #       fuzziness: 1
     #     }
     #   }
     # ).results
