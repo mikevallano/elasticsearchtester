@@ -32,7 +32,18 @@ module Elasticsearchtester
     # config.time_zone = "Central Time (US & Canada)"
     # config.eager_load_paths << Rails.root.join("extras")
 
-    # Don't generate system test files.
-    config.generators.system_tests = nil
+    config.generators do |generate|
+      generate.test_framework(
+        :rspec,
+        system_tests: false,
+        view_specs: false,
+        helper_specs: false,
+        routing_specs: false,
+        controller_specs: false,
+        request_specs: true
+      )
+      generate.assets = false
+      generate.helper = false
+    end
   end
 end
