@@ -17,6 +17,7 @@ describe Book, type: :model do
 
     context 'with #term' do
       # Syntax uses the field as the key, followed by an explicit 'value' key
+      # Similar to 'SELECT * FROM books WHERE field = query (for keyword field)
       it 'does NOT match on full, exact matched title' do
         query_hash = {
           term: {
@@ -60,6 +61,38 @@ describe Book, type: :model do
           }
         }
         expect(search_result(query_hash).first.try(:[], :id)).to be nil
+      end
+    end
+
+    context 'with #terms' do
+      # Syntax uses the field as the key, followed by an array of terms
+      # Similar to 'SELECT * FROM books WHERE field IN () (for keyword field)
+      it 'does NOT match on full, exact matched title' do
+        query_hash = {
+          terms: { title: [book.title] }
+        }
+        expect(search_result(query_hash).first.try(:[], :id)).to be nil
+      end
+
+      it 'DOES match searching one word of the title' do
+        query_hash = {
+          terms: { title: [critters, 'wrong'] }
+        }
+        expect(search_result(query_hash).first.try(:[], :id)).to eq(book.id)
+      end
+
+      it 'DOES match when one of the terms matches keyword field' do
+        query_hash = {
+          terms: { isbn: [book.isbn, 'wrong'] }
+        }
+        expect(search_result(query_hash).first.try(:[], :id)).to eq(book.id)
+      end
+
+      it 'does NOT when one of the terms matches only part of a keyword field' do
+        query_hash = {
+          terms: { isbn: [book.isbn.first(3), 'wrong'] }
+        }
+        expect(search_result(query_hash).first.try(:[], :id)).to eq(book.id)
       end
     end
 
