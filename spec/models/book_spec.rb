@@ -12,6 +12,7 @@ describe Book, type: :model do
     let(:critters) { 'cats' }
     let(:author) { create(:author, first_name: 'Tiglath', last_name: 'Pilesers') }
     let(:title) { "#{critters} in space"}
+    let(:title2) { 'Walking in space with a cat named Zorro' }
     let(:isbn) { rand(10000..20000).to_s }
     let!(:book) { create(:book, :reindex, title: title, author: author, isbn: isbn) }
 
@@ -132,8 +133,7 @@ describe Book, type: :model do
       end
 
       it 'does NOT match when words are in wrong order' do
-        ftitle = 'Walking in space with a cat named Zorro'
-        fbook = create(:book, :reindex, title: ftitle, author: author)
+        fbook = create(:book, :reindex, title: title2, author: author)
         query_hash = {
           match_phrase: { title: 'zorro named' }
         }
@@ -141,8 +141,7 @@ describe Book, type: :model do
       end
 
       it 'does NOT match when query term is plural but title is singular' do
-        ftitle = 'Walking in space with a cat named Zorro'
-        fbook = create(:book, :reindex, title: ftitle, author: author)
+        fbook = create(:book, :reindex, title: title2, author: author)
         query_hash = {
           match_phrase: { title: 'cats named' }
         }
@@ -151,8 +150,7 @@ describe Book, type: :model do
 
       it 'finds match when words are between using #slop' do
         # NOTE syntax change here where the field is the key, and use of explicit 'query' key
-        ftitle = 'Walking in space with a cat named Zorro'
-        fbook = create(:book, :reindex, title: ftitle, author: author)
+        fbook = create(:book, :reindex, title: title2, author: author)
         query_hash = {
           match_phrase: {
             title: {query: 'space cat', slop: 2 }
@@ -244,6 +242,27 @@ describe Book, type: :model do
           }
         }
         expect(search_result(query_hash).first.try(:[], :id)).to be nil
+      end
+    end
+
+    describe 'compound queries' do
+      let(:author2) { create(:author, first_name: 'Faith', last_name: 'Hastings') }
+      let(:isbn2) { rand(10000..20000).to_s }
+      let!(:book2) { create(:book, :reindex, title: title2, author: author2, isbn: isbn2) }
+
+      it 'finds match with #bool' do
+        # must and should can also take arrays
+        query_hash = {
+          bool: {
+            must: [{
+              term: { title: 'cat' }
+            }],
+            should: [{
+              term: { author: book2.author.last_name }
+            }]
+          }
+        }
+        expect(search_result(query_hash).first.try(:[], :id)).to eq(book2.id)
       end
     end
   end
