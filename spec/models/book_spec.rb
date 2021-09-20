@@ -1,5 +1,4 @@
 require 'rails_helper'
-# require '/spec/helpers/elasticsearch_helper.rb'
 
 describe Book, type: :model do
   it 'has a valid factory' do
@@ -8,11 +7,9 @@ describe Book, type: :model do
   end
 
   describe 'elasticsearch', :elasticsearch do
-    after { Book.delete_index! }
     it 'searches elasticsearch successfully' do
       title = 'cats in space'
-      book = create(:book, title: title)
-      Book.refresh_index!
+      book = create(:book, :reindex, title: title)
       response = Book.__elasticsearch__.search(
         query: {
           multi_match: {
@@ -27,8 +24,7 @@ describe Book, type: :model do
     context 'with multi_match' do
       it 'finds book when searching exact title' do
         title = 'cats in space'
-        book = create(:book, title: title)
-        Book.refresh_index!
+        book = create(:book, :reindex, title: title)
         response = Book.__elasticsearch__.search(
           query: {
             multi_match: {
@@ -42,8 +38,7 @@ describe Book, type: :model do
 
       it 'finds book when searching partial title' do
         title = 'cats in space'
-        book = create(:book, title: title)
-        Book.refresh_index!
+        book = create(:book, :reindex, title: title)
         response = Book.__elasticsearch__.search(
           query: {
             multi_match: {
