@@ -164,5 +164,31 @@ describe Book, type: :model do
         expect(search_result(query_hash).first.try(:[], :id)).to be nil
       end
     end
+
+    context 'with #range' do
+      # gt: greater than. gte: greater than or equal to
+      # lt: less than. lte: less than or equal to
+      it 'finds match when query is within range' do
+        query_hash = {
+          range: {
+            id: {
+              gte: book.id
+            }
+          }
+        }
+        expect(search_result(query_hash).first.try(:[], :id)).to eq(book.id)
+      end
+
+      it 'does NOT find match when query is outside range' do
+        query_hash = {
+          range: {
+            id: {
+              gt: book.id
+            }
+          }
+        }
+        expect(search_result(query_hash).first.try(:[], :id)).to be nil
+      end
+    end
   end
 end
