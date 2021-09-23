@@ -8,6 +8,10 @@ describe Book, type: :model do
       .results.results.map{ |res| res.to_h['_source'] }
   end
 
+  def search_result_ids(query_hash)
+    search_result(query_hash).map{|r| r.try(:[], :id)}
+  end
+
   describe 'elasticsearch' do
     let(:critters) { 'cats' }
     let(:author) { create(:author, first_name: 'Tiglath', last_name: 'Pilesers') }
@@ -35,7 +39,7 @@ describe Book, type: :model do
             title: {value: book.title}
           }
         }
-        expect(search_result(query_hash).first.try(:[], :id)).to be nil
+        expect(search_result_ids(query_hash)).to eq([])
       end
 
       it 'DOES match searching one word of the title' do
@@ -44,7 +48,7 @@ describe Book, type: :model do
             title: {value: critters}
           }
         }
-        expect(search_result(query_hash).first.try(:[], :id)).to eq(book.id)
+        expect(search_result_ids(query_hash)).to eq([book.id])
       end
 
       it 'does NOT match singular version of word in the title' do
@@ -53,7 +57,8 @@ describe Book, type: :model do
             title: {value: critters.singularize}
           }
         }
-        expect(search_result(query_hash).first.try(:[], :id)).not_to eq(book.id)
+        # book2 contains singular 'cat'
+        expect(search_result_ids(query_hash)).to eq([book2.id])
       end
 
       it 'DOES match searching exact match on a keyword field' do
@@ -62,7 +67,7 @@ describe Book, type: :model do
             isbn: {value: book.isbn}
           }
         }
-        expect(search_result(query_hash).first.try(:[], :id)).to eq(book.id)
+        expect(search_result_ids(query_hash)).to eq([book.id])
       end
 
       it 'des NOT match searching partial match of keyword field' do
@@ -71,7 +76,7 @@ describe Book, type: :model do
             isbn: {value: book.isbn.first(3)}
           }
         }
-        expect(search_result(query_hash).first.try(:[], :id)).not_to eq(book.id)
+        expect(search_result_ids(query_hash)).to eq([])
       end
     end
 
@@ -82,28 +87,28 @@ describe Book, type: :model do
         query_hash = {
           terms: { title: [book.title] }
         }
-        expect(search_result(query_hash).first.try(:[], :id)).to be nil
+        expect(search_result_ids(query_hash)).to eq([])
       end
 
       it 'DOES match searching one word of the title' do
         query_hash = {
           terms: { title: [critters, 'wrong'] }
         }
-        expect(search_result(query_hash).first.try(:[], :id)).to eq(book.id)
+        expect(search_result_ids(query_hash)).to eq([book.id])
       end
 
       it 'DOES match when one of the terms matches keyword field' do
         query_hash = {
           terms: { isbn: [book.isbn, 'wrong'] }
         }
-        expect(search_result(query_hash).first.try(:[], :id)).to eq(book.id)
+        expect(search_result_ids(query_hash)).to eq([book.id])
       end
 
       it 'does NOT when one of the terms matches only part of a keyword field' do
         query_hash = {
           terms: { isbn: [book.isbn.first(3), 'wrong'] }
         }
-        expect(search_result(query_hash).first.try(:[], :id)).not_to eq(book.id)
+        expect(search_result_ids(query_hash)).to eq([])
       end
     end
 
@@ -113,45 +118,47 @@ describe Book, type: :model do
         query_hash = {
           match: { title: book.title }
         }
-        expect(search_result(query_hash).first.try(:[], :id)).to eq(book.id)
+        # Matches book2 because of similarity?
+        expect(search_result_ids(query_hash)).to eq([book.id, book2.id])
       end
 
       it 'finds match when one of the words in the field matches exactly even if another word is not in the field at all' do
         query_hash = {
           match: { title: 'wrong zorro' }
         }
-        expect(search_result(query_hash).first.try(:[], :id)).to eq(book2.id)
+        expect(search_result_ids(query_hash)).to eq([book2.id])
       end
 
       it 'does NOT match singular version of word in the title' do
         query_hash = {
           match: { title: critters.singularize }
         }
-        expect(search_result(query_hash).first.try(:[], :id)).not_to eq(book.id)
+        # Does not match book1 because of singular 'cat'
+        expect(search_result_ids(query_hash)).to eq([book2.id])
       end
     end
 
     context 'with #match_phrase' do
       # Note syntax with the singular field to be queried followed by the query string
-      it 'finds book when searching exact title' do
+      it 'finds book when searching exact phrase match' do
         query_hash = {
           match_phrase: { title: 'cats in' }
         }
-        expect(search_result(query_hash).first.try(:[], :id)).to eq(book.id)
+        expect(search_result_ids(query_hash)).to eq([book.id])
       end
 
       it 'does NOT match when words are in wrong order' do
         query_hash = {
           match_phrase: { title: 'zorro named' }
         }
-        expect(search_result(query_hash).first.try(:[], :id)).not_to eq(book2.id)
+        expect(search_result_ids(query_hash)).to eq([])
       end
 
       it 'does NOT match when query term is plural but title is singular' do
         query_hash = {
           match_phrase: { title: 'cats named' }
         }
-        expect(search_result(query_hash).first.try(:[], :id)).not_to eq(book2.id)
+        expect(search_result_ids(query_hash)).to eq([])
       end
 
       it 'finds match when words are between using #slop' do
@@ -161,14 +168,15 @@ describe Book, type: :model do
             title: {query: 'space cat', slop: 2 }
           }
         }
-        expect(search_result(query_hash).first.try(:[], :id)).to eq(book2.id)
+        # Does not match book2 because 'space' ?
+        expect(search_result_ids(query_hash)).to eq([book2.id])
       end
 
       it 'does NOT match singular version of word in the title' do
         query_hash = {
           match_phrase: { title: "#{critters.singularize} in"}
         }
-        expect(search_result(query_hash).first.try(:[], :id)).to be nil
+        expect(search_result_ids(query_hash)).to eq([])
       end
     end
 
@@ -180,7 +188,8 @@ describe Book, type: :model do
             fields: [:title]
           }
         }
-        expect(search_result(query_hash).first.try(:[], :id)).to eq(book.id)
+        # Still matches book2 since there are enough common words?
+        expect(search_result_ids(query_hash)).to eq([book.id, book2.id])
       end
 
       it 'finds book when searching query contains a word in the title' do
@@ -190,7 +199,8 @@ describe Book, type: :model do
             fields: [:title]
           }
         }
-        expect(search_result(query_hash).first.try(:[], :id)).to eq(book.id)
+        # book2 contains a singular version of the query
+        expect(search_result_ids(query_hash)).to eq([book.id])
       end
 
       it 'does NOT match on singular version of a word in a text field' do
@@ -200,7 +210,8 @@ describe Book, type: :model do
             fields: [:title]
           }
         }
-        expect(search_result(query_hash).first.try(:[], :id)).not_to eq(book.id)
+        # book2 has the exact match 'cat' in the title
+        expect(search_result_ids(query_hash)).to eq([book2.id])
       end
 
       it 'matches when searching author name' do
@@ -210,7 +221,7 @@ describe Book, type: :model do
             fields: [:title, :author]
           }
         }
-        expect(search_result(query_hash).first.try(:[], :id)).to eq(book.id)
+        expect(search_result_ids(query_hash)).to eq([book.id])
       end
 
       it 'does NOT match part of the author name' do
@@ -220,7 +231,7 @@ describe Book, type: :model do
             fields: [:title, :author]
           }
         }
-        expect(search_result(query_hash).first.try(:[], :id)).not_to eq(book.id)
+        expect(search_result_ids(query_hash)).to eq([])
       end
     end
 
@@ -235,7 +246,8 @@ describe Book, type: :model do
             }
           }
         }
-        expect(search_result(query_hash).first.try(:[], :id)).to eq(book.id)
+        # TODO: not sure if range does scoring
+        expect(search_result_ids(query_hash)).to match_array([book.id, book2.id])
       end
 
       it 'does NOT find match when query is outside range' do
@@ -246,7 +258,7 @@ describe Book, type: :model do
             }
           }
         }
-        expect(search_result(query_hash).first.try(:[], :id)).not_to eq(book.id)
+        expect(search_result_ids(query_hash)).to eq([book2.id])
       end
     end
 
@@ -263,7 +275,7 @@ describe Book, type: :model do
             }]
           }
         }
-        expect(search_result(query_hash).first.try(:[], :id)).to eq(book2.id)
+        expect(search_result_ids(query_hash)).to eq([book2.id])
       end
     end
   end
