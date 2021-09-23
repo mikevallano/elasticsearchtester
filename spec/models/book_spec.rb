@@ -263,19 +263,37 @@ describe Book, type: :model do
     end
 
     describe 'compound queries' do
+      let!(:book3) { create(:book, :reindex, title: 'zippers of summer with tacos and a cat', id: 3) }
       it 'finds match with #bool' do
-        # must and should can also take arrays
         query_hash = {
           bool: {
-            must: [{
-              term: { title: 'cat' }
-            }],
-            should: [{
-              term: { author: book2.author.last_name }
-            }]
+            must: [
+              { term: { title: 'cat' } }
+            ],
+            should: [
+              { term: { author: book2.author.last_name } }
+            ]
           }
         }
-        expect(search_result_ids(query_hash)).to eq([book2.id])
+        # should is like OR. so both are matched on the singlular cat
+        expect(search_result_ids(query_hash)).to eq([book2.id, book3.id])
+      end
+
+      it 'finds match with #bool and multiple must' do
+        query_hash = {
+          bool: {
+            must: [
+              { term: { title: 'cat' } },
+              { match: { author: book3.author.last_name } }
+            ],
+            should: [
+              { term: { author: book2.author.last_name } }
+            ]
+          }
+        }
+        # book2 and book3 match on the term query, but book3 author is
+        # contained in one of the must queries
+        expect(search_result_ids(query_hash)).to eq([book3.id])
       end
     end
   end
