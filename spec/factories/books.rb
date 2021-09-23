@@ -1,7 +1,7 @@
 FactoryBot.define do
   factory :book do
     title { "MyString" }
-    isbn { "MyString" }
+    isbn { rand(10000..20000).to_s }
     published_at { "2021-09-16" }
     pages { 1 }
     association :author
